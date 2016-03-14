@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from train_places import *
+
 weight_param = dict(lr_mult=1, decay_mult=1)
 bias_param   = dict(lr_mult=2, decay_mult=0)
 learned_param = [weight_param, bias_param]
