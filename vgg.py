@@ -77,7 +77,7 @@ def minivgg(data, labels=None, train=False, param=learned_param,
     n.drop2 = L.Dropout(n.relu13, in_place=True, dropout_ratio=0.5)
     n.fc3, n.softMax1 = fc_softmax(n.drop2, num_classes, param=param)
 
-    preds = n.softMax1
+    preds = n.probs = n.softMax1
 
     if with_labels:
         n.label = labels
