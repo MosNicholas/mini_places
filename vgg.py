@@ -2,15 +2,15 @@
 
 from train_places import *
 
-weight_param = dict(lr_mult=1, decay_mult=1)
-bias_param   = dict(lr_mult=2, decay_mult=0)
-learned_param = [weight_param, bias_param]
-frozen_param = [dict(lr_mult=0)] * 2
+weight_param    = dict(lr_mult=1, decay_mult=1)
+bias_param      = dict(lr_mult=2, decay_mult=0)
+learned_param   = [weight_param, bias_param]
+frozen_param    = [dict(lr_mult=0)] * 2
 
-zero_filler     = dict(type='constant', value=0)
-fc_filler       = dict(type='gaussian', std=0.005)
-xavier          = dict(type='xavier')
-xavier_no_local     = dict(type='xavier', local='false')
+zero_filler          = dict(type='constant', value=0)
+fc_filler            = dict(type='gaussian', std=0.005)
+xavier               = dict(type='xavier')
+xavier_no_local      = dict(type='xavier', variance_norm='FAN_OUT')
 
 def conv_relu(bottom, ks, nout, stride=1, pad=0, group=1,
               param=learned_param,
@@ -71,11 +71,11 @@ def minivgg(data, labels=None, train=False, param=learned_param,
     n.conv11, n.relu11 = conv_relu(n.relu10, 3, 256, stride=1, pad=1, **conv_kwargs)
     n.pool4 = max_pool(n.relu11, 2, stride=2, train=train)
 
-    n.fc1, n.relu12 = fc_relu(n.pool4, 1024, param=param)
+    n.fc1, n.relu12 = fc_relu(n.pool4, 1024, param=param, weight_filler=xavier_no_local)
     n.drop1 = L.Dropout(n.relu12, in_place=True, dropout_ratio=0.5)
-    n.fc2, n.relu13 = fc_relu(n.drop1, 1024, param=param)
+    n.fc2, n.relu13 = fc_relu(n.drop1, 1024, param=param, weight_filler=xavier_no_local)
     n.drop2 = L.Dropout(n.relu13, in_place=True, dropout_ratio=0.5)
-    n.fc3, n.softMax1 = fc_softmax(n.drop2, num_classes, param=param)
+    n.fc3, n.softMax1 = fc_softmax(n.drop2, num_classes, param=param, weight_filler=xavier_no_local)
 
     preds = n.probs = n.softMax1
 
