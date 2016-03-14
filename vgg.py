@@ -140,12 +140,12 @@ def minivgg(data, labels=None, train=False, param=learned_param,
     n.pool4 = max_pool(n.relu11, 2, stride=2, train=train)
 
     n.fc1, n.relu12 = fc_relu(n.pool4, 1024, param=param)
-    n.drop1 = L.Dropout(n.fc1, in_place=True, dropout_ratio=0.5)
+    n.drop1 = L.Dropout(n.relu12, in_place=True, dropout_ratio=0.5)
     n.fc2, n.relu13 = fc_relu(n.drop1, 1024, param=param)
-    n.drop2 = L.Dropout(n.fc2, in_place=True, dropout_ratio=0.5)
+    n.drop2 = L.Dropout(n.relu13, in_place=True, dropout_ratio=0.5)
     n.fc3, n.softMax1 = fc_softmax(n.drop2, num_classes, param=param)
 
-    preds  = n.softMax1
+    preds = n.softMax1
 
     if with_labels:
         n.label = labels
