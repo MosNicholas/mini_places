@@ -18,7 +18,7 @@ fc_filler       = dict(type='gaussian', std=0.005)
 conv_filler     = dict(type='msra')
 
 def conv_relu(bottom, ks, nout, stride=1, pad=0, group=1,
-              param=learned_param,
+              param=weight_param,
               weight_filler=conv_filler, bias_filler=zero_filler,
               train=False):
     # set CAFFE engine to avoid CuDNN convolution -- non-deterministic results
@@ -27,15 +27,17 @@ def conv_relu(bottom, ks, nout, stride=1, pad=0, group=1,
         engine.update(engine=P.Pooling.CAFFE)
     conv = L.Convolution(bottom, kernel_size=ks, stride=stride,
                          num_output=nout, pad=pad, group=group, param=param,
-                         weight_filler=weight_filler, bias_filler=bias_filler,
+                         weight_filler=weight_filler, bias_term=False,
                          **engine)
-    return conv, L.ReLU(conv, in_place=True)
+    norm = L.BatchNorm(conv)
+    return L.ReLU(norm, in_place=True)
 
-def fc_relu(bottom, nout, param=learned_param,
+def fc_relu(bottom, nout, param=weight_param,
             weight_filler=fc_filler, bias_filler=zero_filler):
     fc = L.InnerProduct(bottom, num_output=nout, param=param,
-                        weight_filler=weight_filler, bias_filler=bias_filler)
-    return fc, L.ReLU(fc, in_place=True)
+                        weight_filler=weight_filler, bias_term=False)
+    norm = L.BatchNorm(fc)
+    return norm, L.ReLU(norm, in_place=True)
 
 def max_pool(bottom, ks, stride=1, train=False):
     # set CAFFE engine to avoid CuDNN pooling -- non-deterministic results
@@ -45,7 +47,7 @@ def max_pool(bottom, ks, stride=1, train=False):
     return L.Pooling(bottom, pool=P.Pooling.MAX, kernel_size=ks, stride=stride,
                      **engine)
 
-def minialexnet(data, labels=None, train=False, param=learned_param,
+def minialexnet(data, labels=None, train=False, param=weight_param,
                 num_classes=100, with_labels=True):
     """
     Returns a protobuf text file specifying a variant of AlexNet, following the
@@ -59,13 +61,13 @@ def minialexnet(data, labels=None, train=False, param=learned_param,
     n = caffe.NetSpec()
     n.data = data
     conv_kwargs = dict(param=param, train=train)
-    n.conv1, n.relu1 = conv_relu(n.data, 11, 96, stride=4, **conv_kwargs)
+    n.relu1 = conv_relu(n.data, 11, 96, stride=4, **conv_kwargs)
     n.pool1 = max_pool(n.relu1, 3, stride=2, train=train)
-    n.conv2, n.relu2 = conv_relu(n.pool1, 5, 256, pad=2, group=2, **conv_kwargs)
+    n.relu2 = conv_relu(n.pool1, 5, 256, pad=2, group=2, **conv_kwargs)
     n.pool2 = max_pool(n.relu2, 3, stride=2, train=train)
-    n.conv3, n.relu3 = conv_relu(n.pool2, 3, 384, pad=1, **conv_kwargs)
-    n.conv4, n.relu4 = conv_relu(n.relu3, 3, 384, pad=1, group=2, **conv_kwargs)
-    n.conv5, n.relu5 = conv_relu(n.relu4, 3, 256, pad=1, group=2, **conv_kwargs)
+    n.relu3 = conv_relu(n.pool2, 3, 384, pad=1, **conv_kwargs)
+    n.relu4 = conv_relu(n.relu3, 3, 384, pad=1, group=2, **conv_kwargs)
+    n.relu5 = conv_relu(n.relu4, 3, 256, pad=1, group=2, **conv_kwargs)
     n.pool5 = max_pool(n.relu5, 3, stride=2, train=train)
     n.fc6, n.relu6 = fc_relu(n.pool5, 1024, param=param)
     n.drop6 = L.Dropout(n.relu6, in_place=True)
