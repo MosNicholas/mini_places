@@ -7,6 +7,7 @@ import numpy as np
 import os
 import tempfile
 import time
+import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser(
     description='Train and evaluate a net on the MIT mini-places dataset.')
@@ -33,7 +34,7 @@ parser.add_argument('--lr', type=float, default=0.01,
     help='The initial learning rate')
 parser.add_argument('--gamma', type=float, default=0.1,
     help='Factor by which to drop the learning rate')
-parser.add_argument('--stepsize', type=int, default=10*1000,
+parser.add_argument('--stepsize', type=int, default=8*1000,
     help='Drop the learning rate every N iters -- this specifies N')
 parser.add_argument('--momentum', type=float, default=0.9,
     help='The momentum hyperparameter to use for momentum SGD')
@@ -181,6 +182,11 @@ def train_net(fn, with_val_net=False):
         val_net_file = None
     solver_file = miniplaces_solver(train_net_file, val_net_file)
     solver = caffe.get_solver(solver_file)
+    solver.restore('snapshot/place_net_iter_24000.solverstate')
+    filters = solver.net.params['Convolution1'][0].data
+    vis_square(filters.transpose(0, 2, 3, 1))
+    crash
+    # solver.net.copy_from('snapshot/place_net_iter_45000.caffemodel')
     outputs = sorted(solver.net.outputs)
     def str_output(output):
         value = solver.net.blobs[output].data
@@ -265,3 +271,27 @@ def eval_net(fn, split, K=5):
         f.write(''.join('%s,%s\n' % (image, ','.join(str(p) for p in preds))
                         for image, preds in zip(filenames, top_k_predictions)))
     print 'Predictions for split %s dumped to: %s' % (split, filename)
+
+
+def vis_square(data):
+    """Take an array of shape (n, height, width) or (n, height, width, 3)
+       and visualize each (height, width) thing in a grid of size approx. sqrt(n) by sqrt(n)"""
+
+    # normalize data for display
+    data = (data - data.min()) / (data.max() - data.min())
+
+    # force the number of filters to be square
+    n = int(np.ceil(np.sqrt(data.shape[0])))
+    padding = (((0, n ** 2 - data.shape[0]),
+               (0, 1), (0, 1))                 # add some space between filters
+               + ((0, 0),) * (data.ndim - 3))  # don't pad the last dimension (if there is one)
+    data = np.pad(data, padding, mode='constant', constant_values=1)  # pad with ones (white)
+
+    # tile the filters into an image
+    data = data.reshape((n, n) + data.shape[1:]).transpose((0, 2, 1, 3) + tuple(range(4, data.ndim + 1)))
+    data = data.reshape((n * data.shape[1], n * data.shape[3]) + data.shape[4:])
+    print 'Visualizing first layer of filters'
+    plt.rcParams['image.interpolation'] = 'nearest'
+    plt.imshow(data)
+    plt.axis('off')
+    plt.show()
